@@ -1,0 +1,57 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EGX AI Analyst — تحليل أسهم البورصة المصرية</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#14231f;--mut:#5d6f69;--line:#dbe3e0;--acc:#0b6b5c;--up:#0b7a4b;--dn:#b3261e;--warn:#9a6700}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1614;--card:#15211e;--ink:#e6efec;--mut:#93a8a1;--line:#27382f;--acc:#3cc4a8;--up:#4cd08c;--dn:#ff7b72;--warn:#e3b341}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "IBM Plex Sans Arabic",system-ui,sans-serif;padding:max(16px,env(safe-area-inset-top)) 14px 40px}
+main{max-width:860px;margin:auto}h1{font-size:1.5rem;margin:8px 0 14px}
+form{display:flex;gap:8px;position:sticky;top:0;padding:8px 0;background:var(--bg);z-index:2}
+input{flex:1;font:inherit;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+button{font:inherit;font-weight:600;padding:0 20px;border:0;border-radius:10px;background:var(--acc);color:var(--bg);cursor:pointer}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}
+h2{font-size:1.05rem;margin:0 0 10px}.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}
+.mut{color:var(--mut);font-size:.9rem}.up{color:var(--up)}.dn{color:var(--dn)}.big{font-size:2rem;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.grid section{margin:0}
+a{color:var(--acc)}li{margin:6px 0}ul{padding-inline-start:18px;margin:0}.warn{color:var(--warn)}
+.bar{position:relative;height:10px;background:var(--line);border-radius:6px;margin:14px 0 4px}.bar i{position:absolute;top:-4px;width:4px;height:18px;border-radius:2px}
+svg{width:100%;height:auto;display:block}
+</style></head><body><main>
+<h1>EGX AI Analyst</h1>
+<form id="f"><input id="q" placeholder="اسم السهم أو الرمز — مثال: COMI أو طلعت مصطفى" autocomplete="off" required><button>حلّل</button></form>
+<div id="out"><p class="mut">اكتب اسم السهم أو رمزه وهيطلع لك التحليل الفني، القمم والقيعان، السعر العادل، الأخبار والإفصاحات.</p></div>
+<script>
+const $=s=>document.querySelector(s),out=$('#out'),n=(x,d=2)=>x==null||isNaN(x)?'—':(+x).toLocaleString('en',{maximumFractionDigits:d});
+const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const R=(k,v)=>`<div class="row"><span class="mut">${k}</span><b>${v}</b></div>`;
+const list=a=>a.length?`<ul>${a.map(x=>`<li><a href="${e(x.url)}" target="_blank" rel="noopener">${e(x.title)}</a><div class="mut">${e(x.src)} ${x.date?'· '+new Date(x.date).toLocaleDateString('ar-EG'):''}</div></li>`).join('')}</ul>`:'<p class="mut">مفيش نتائج دلوقتي.</p>';
+function chart(s,m){const W=600,H=200,v=s.map(x=>x.c),lo=Math.min(...v),hi=Math.max(...v),X=i=>i/(s.length-1)*W,Y=y=>H-6-(y-lo)/(hi-lo||1)*(H-12);
+ const p=a=>a.map((y,i)=>y==null?'':`${X(i).toFixed(1)},${Y(y).toFixed(1)}`).filter(Boolean).join(' ');
+ return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="رسم السعر"><polyline fill="none" stroke="var(--acc)" stroke-width="2" points="${p(v)}"/><polyline fill="none" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="4 3" points="${p(m)}"/></svg><div class="mut">آخر 130 يوم تداول · الخط المتقطع = متوسط 50 يوم</div>`}
+$('#f').onsubmit=async ev=>{ev.preventDefault();out.innerHTML='<p class="mut">بجيب البيانات من المصادر…</p>';
+ try{const r=await fetch('/api/analyze?q='+encodeURIComponent($('#q').value)),d=await r.json();if(!r.ok)throw Error(d.error);render(d)}
+ catch(x){out.innerHTML=`<section class="dn">${e(x.message)}</section>`}};
+function render(d){const a=d.a,t=a.t,f=d.fund,fv=a.fair,cls=t.chg>=0?'up':'dn';
+ const pos=fv?Math.min(100,Math.max(0,(t.px-Math.min(a.lo52.p,fv.lo))/((Math.max(a.hi52.p,fv.hi)-Math.min(a.lo52.p,fv.lo))||1)*100)):0;
+ out.innerHTML=`
+ <section><div class="mut">${e(d.symbol)} · ${e(f?.sector||'')}</div><h2>${e(d.name)}</h2>
+ <div class="big">${n(t.px)} <small>ج.م</small> <span class="${cls}" style="font-size:1.1rem">${t.chg>=0?'▲':'▼'} ${n(Math.abs(t.chg))}%</span></div>
+ <p>الاتجاه الفني: <b class="${a.trend==='صاعد'?'up':a.trend==='هابط'?'dn':''}">${a.trend}</b> <span class="mut">(${a.why.join('، ')})</span></p>${chart(a.series,a.sma50s)}</section>
+ <div class="grid">
+ <section><h2>القمم والقيعان</h2>${R('أعلى 52 أسبوع',n(a.hi52.p)+' <span class="mut">'+a.hi52.d+'</span>')}${R('أقل 52 أسبوع',n(a.lo52.p)+' <span class="mut">'+a.lo52.d+'</span>')}
+ ${R('أقرب مقاومة',a.res?n(a.res.p):'—')}${R('أقرب دعم',a.sup?n(a.sup.p):'—')}
+ <div class="mut" style="margin-top:8px">آخر قمم: ${a.pv.hi.map(x=>n(x.p)).join('، ')||'—'}<br>آخر قيعان: ${a.pv.lo.map(x=>n(x.p)).join('، ')||'—'}</div></section>
+ <section><h2>مؤشرات فنية</h2>${R('RSI(14)',n(t.rsi,1))}${R('MACD / الهيستوجرام',n(t.macd)+' / '+n(t.hist))}${R('متوسط 20 / 50',n(t.sma20)+' / '+n(t.sma50))}${R('متوسط 200',n(t.sma200))}${R('حجم التداول ÷ متوسط 20',t.volAvg?n(t.vol/t.volAvg,1)+'×':'—')}</section>
+ ${a.risk?`<section><h2>خطة تداول مبنية على ATR</h2>${R('وقف الخسارة',n(a.risk.stop))}${R('هدف 1',n(a.risk.t1))}${R('هدف 2',n(a.risk.t2))}<div class="mut">وقف = السعر − 1.5×ATR · الأهداف +1.5× و +3×. أداة مساعدة مش توصية.</div></section>`:''}
+ </div>
+ <section><h2>السعر العادل (تقدير)</h2>${fv?`<div class="bar"><i style="inset-inline-start:${pos}%;background:var(--ink)"></i></div>
+ ${R('النطاق',n(fv.lo)+' – '+n(fv.hi)+' ج.م')}${R('المتوسط',n(fv.mid)+' ج.م')}${R('هامش الأمان',`<span class="${fv.mos>=0?'up':'dn'}">${n(fv.mos,1)}%</span>`)}
+ ${fv.methods.map(m=>`<div class="mut">• ${e(m.m)} = ${n(m.v)}</div>`).join('')}<div class="mut warn">تقدير بسيط من آخر ربحية وقيمة دفترية؛ مش بديل لتحليل التدفقات النقدية أو لمقارنة القطاع.</div>`:'<p class="mut">مفيش ربحية موجبة أو بيانات كفاية لحساب سعر عادل.</p>'}</section>
+ ${f?`<section><h2>الأساسيات</h2>${R('القيمة السوقية',n(f.mcap/1e9)+' مليار')}${R('مضاعف الربحية P/E',n(f.pe,1))}${R('ربحية السهم EPS',n(f.eps))}${R('P/B',n(f.pb))}${R('عائد التوزيعات',n(f.dy,1)+'%')}</section>`:''}
+ <section><h2>آخر الأخبار</h2>${list(d.news)}</section>
+ <section><h2>آخر الإفصاحات</h2>${list(d.disclosures)}</section>
+ <section><h2>القوائم المالية والإفصاحات الرسمية</h2><ul>${d.links.map(l=>`<li><a href="${e(l[1])}" target="_blank" rel="noopener">${e(l[0])}</a></li>`).join('')}</ul></section>
+ ${d.errors.length?`<section class="warn"><h2>مصادر مش مستجيبة</h2>${d.errors.map(x=>'<div>'+e(x)+'</div>').join('')}</section>`:''}
+ <p class="mut">تحليل آلي للاسترشاد فقط، مش نصيحة استثمارية.</p>`}
+</script></main></body></html>
